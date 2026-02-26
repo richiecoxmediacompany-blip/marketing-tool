@@ -4,6 +4,8 @@ import { CompanyReport } from "@/lib/types";
 
 const client = new Anthropic();
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const { query } = await request.json();
@@ -65,11 +67,15 @@ Include 3-5 competitors and 3-5 recent news items. Make sure all information is 
       }
     }
 
+    if (!reportText) {
+      throw new Error(
+        "No text response received from the research. Please try again."
+      );
+    }
+
     // Parse the JSON from the response
-    // Try to extract JSON from the response text
     let report: CompanyReport;
     try {
-      // First try direct parse
       report = JSON.parse(reportText.trim());
     } catch {
       // Try to extract JSON from markdown code fences or surrounding text
@@ -77,8 +83,13 @@ Include 3-5 competitors and 3-5 recent news items. Make sure all information is 
       if (jsonMatch) {
         report = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error("Could not parse research results");
+        throw new Error("Could not parse research results. Please try again.");
       }
+    }
+
+    // Validate required fields exist
+    if (!report.companyName || !report.overview) {
+      throw new Error("Incomplete research results. Please try again.");
     }
 
     return NextResponse.json({ success: true, report });
