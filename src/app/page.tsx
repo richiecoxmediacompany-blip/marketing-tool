@@ -30,8 +30,17 @@ export default function Home() {
       } else {
         setError(data.error || "Something went wrong. Please try again.");
       }
-    } catch {
-      setError("Failed to connect to the research service. Please try again.");
+    } catch (err) {
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        setError(
+          "Request timed out. The Vercel Hobby plan limits functions to 10 seconds, " +
+          "which may not be enough for web-search research. Try again or consider upgrading to Vercel Pro."
+        );
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Failed to connect to the research service. Please try again."
+        );
+      }
     } finally {
       setIsLoading(false);
     }

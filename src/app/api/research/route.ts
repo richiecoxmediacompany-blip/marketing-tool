@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { CompanyReport } from "@/lib/types";
 
+// Vercel Hobby plan has a 10s hard limit; Pro plan supports up to 60s.
+// This export only takes effect on Pro/Enterprise plans.
 export const maxDuration = 60;
 
 function getClient(): Anthropic {
@@ -28,45 +30,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const systemPrompt = `You are a marketing intelligence analyst. Your job is to research companies and produce structured reports. Use web search to find current, accurate information about the company. Be thorough and factual. If you cannot find information about something, say so honestly rather than making things up.`;
+    const systemPrompt = `You are a marketing intelligence analyst. Research companies and produce structured JSON reports. Use web search to find current information. Be concise and factual. Respond ONLY with raw JSON, no markdown.`;
 
-    const userPrompt = `Research the company "${query.trim()}" and produce a detailed marketing intelligence report. Search the web for current information about this company.
-
-Return your findings as a JSON object with exactly this structure (no markdown, no code fences, just raw JSON):
+    const userPrompt = `Research "${query.trim()}" and return a JSON object (no markdown, no code fences):
 {
-  "companyName": "Official company name",
-  "website": "company website URL",
-  "overview": "2-3 paragraph overview of what the company does",
-  "businessModel": "Detailed explanation of how they make money",
-  "targetMarket": "Description of their target customers and market segments",
-  "productsAndServices": ["Product/Service 1", "Product/Service 2", ...],
-  "competitors": [
-    {"name": "Competitor Name", "description": "Brief description of how they compete"},
-    ...
-  ],
-  "recentNews": [
-    {"headline": "News headline", "summary": "Brief summary of the news item"},
-    ...
-  ],
-  "marketPosition": {
-    "category": "Leader" or "Challenger" or "Niche Player" or "Emerging",
-    "explanation": "Why they hold this position"
-  }
+  "companyName": "Official name",
+  "website": "URL",
+  "overview": "1-2 paragraph overview",
+  "businessModel": "How they make money",
+  "targetMarket": "Target customers",
+  "productsAndServices": ["Product 1", "Product 2"],
+  "competitors": [{"name": "Name", "description": "How they compete"}],
+  "recentNews": [{"headline": "Headline", "summary": "Summary"}],
+  "marketPosition": {"category": "Leader|Challenger|Niche Player|Emerging", "explanation": "Why"}
 }
-
-Include 3-5 competitors and 3-5 recent news items. Make sure all information is current and accurate based on your web search results.`;
+Include 3-5 competitors and 2-3 recent news items.`;
 
     console.log("[research] Starting research for query:", query.trim());
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-5-20250929",
-      max_tokens: 16000,
+      max_tokens: 4096,
       system: systemPrompt,
       tools: [
         {
           type: "web_search_20250305",
           name: "web_search",
-          max_uses: 10,
+          max_uses: 3,
         },
       ],
       messages: [{ role: "user", content: userPrompt }],
